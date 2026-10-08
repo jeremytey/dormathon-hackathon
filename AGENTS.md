@@ -1,0 +1,11 @@
+# Rules (hackathon: a working demo beats clean code)
+- Read SPEC.md first. If something conflicts with it, stop and ask the person in this session.
+- Build the demo path first. Nothing outside SPEC.md.
+- Prediction numbers come from plain code in lib/ (moving average, trend). The LLM only writes the explanation and recommended action. It never invents a number.
+- Validate every LLM output with Zod. Retry once, then show a cached fallback.
+- Support LLM_MOCK=1 (returns the cached output) so the app runs without an API key.
+- Keys from env only. Never print or commit them.
+- Ask before adding a dependency, except zod, recharts, shadcn/ui, lucide-react and the LLM SDK.
+- Work on a branch and open a PR. Small changes. One task per session. Commit before big changes.
+- Never run: git reset --hard, git push --force, rm -rf, or delete branches.
+- Done = it works on the live Vercel link.
