@@ -4,8 +4,9 @@ import { resolveTenant } from "@/lib/auth";
 import { cacheEligibility, cacheKey, lookup, store } from "@/lib/cache";
 import { costMyr, usdToMyrRate } from "@/lib/pricing";
 import { callProvider } from "@/lib/provider";
+import { currentSnapshot } from "@/lib/risk";
 import { AnthropicRequest, type UsageEvent } from "@/lib/schema";
-import { addEvent, getSettings } from "@/lib/store";
+import { addEvent } from "@/lib/store";
 
 function anthropicError(status: number, type: string, message: string) {
   return Response.json({ type: "error", error: { type, message } }, { status });
@@ -32,12 +33,16 @@ export async function POST(request: Request) {
       `Unsupported or invalid request (${issue.path.join(".") || "body"}): ${issue.message}`,
     );
   }
-  const req = parsed.data;
 
-  // TODO(A, 12–16h): hard-stop check.
-  const settings = getSettings(tenant.tenant_id);
-  const eligibility = cacheEligibility(req, settings.exact_cache_approved);
-  const key = eligibility.eligible ? cacheKey(req, tenant) : null;
+  // Policy comes from the saved risk snapshot (refreshed at most once a minute).
+  const snapshot = currentSnapshot(tenant.tenant_id);
+  const cap = snapshot.active_policies.output_cap_tokens;
+  const req =
+    cap !== null && parsed.data.max_tokens > cap ? { ...parsed.data, max_tokens: cap } : parsed.data;
+  const policyHeaders = {
+    "x-tokenguard-risk": snapshot.risk_level,
+    "x-tokenguard-output-cap": cap === null ? "off" : String(cap),
+  };
 
   const event = (fields: Partial<UsageEvent>): UsageEvent => ({
     request_id: randomUUID(),
@@ -58,12 +63,25 @@ export async function POST(request: Request) {
     ...fields,
   });
 
+  if (snapshot.hard_stop_active) {
+    addEvent(event({ provider: "none", status: "blocked", cache_type: "bypass" }));
+    // 403, not 429: the Anthropic SDK retries 429s, and a budget stop should not be retried.
+    return anthropicError(
+      403,
+      "permission_error",
+      "TokenGuard hard stop: the monthly AI budget is used up. Ask an admin to raise the budget or turn off hard stop.",
+    );
+  }
+
+  const eligibility = cacheEligibility(req, snapshot.active_policies.exact_cache);
+  const key = eligibility.eligible ? cacheKey(req, tenant) : null;
+
   const hit = key ? lookup(key) : undefined;
   if (hit) {
     addEvent(event({ status: "cache_hit", cache_type: "exact_hit", estimated_avoided_cost_myr: hit.cost_myr }));
     return Response.json(
       { ...hit.response, id: `msg_tg_${randomUUID()}`, usage: { input_tokens: 0, output_tokens: 0 } },
-      { headers: { "x-tokenguard-cache": "exact_hit" } },
+      { headers: { "x-tokenguard-cache": "exact_hit", ...policyHeaders } },
     );
   }
 
@@ -85,6 +103,6 @@ export async function POST(request: Request) {
   if (key && !fallback) store(key, { response, cost_myr: cost });
 
   return Response.json(response, {
-    headers: { "x-tokenguard-cache": eligibility.eligible ? "miss" : "bypass" },
+    headers: { "x-tokenguard-cache": eligibility.eligible ? "miss" : "bypass", ...policyHeaders },
   });
 }

@@ -2,7 +2,7 @@
 // Default source is "simulated" while the demo history is seeded (demo mode), else "real".
 // The two sources are never mixed; the response says which one it used.
 import { connection } from "next/server";
-import { forecast } from "@/lib/forecast";
+import { defaultSource, forecast } from "@/lib/forecast";
 import { getSettings } from "@/lib/store";
 
 // TODO(A): dashboard auth. Scoped to the single demo tenant for now.
@@ -14,6 +14,6 @@ export async function GET(request: Request) {
   if (param !== null && param !== "real" && param !== "simulated") {
     return Response.json({ error: "source must be real or simulated" }, { status: 400 });
   }
-  const source = param ?? (process.env.SEED_SIMULATED === "0" ? "real" : "simulated");
+  const source = param ?? defaultSource();
   return Response.json(forecast(TENANT_ID, source, getSettings(TENANT_ID).monthly_budget_myr));
 }

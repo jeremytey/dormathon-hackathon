@@ -1,5 +1,6 @@
 // GET/PUT /api/settings — budget, mode, thresholds. Set from the dashboard.
 import { connection } from "next/server";
+import { refreshSnapshot } from "@/lib/risk";
 import { Settings } from "@/lib/schema";
 import { getSettings, saveSettings } from "@/lib/store";
 
@@ -30,5 +31,6 @@ export async function PUT(request: Request) {
     );
   }
   saveSettings(TENANT_ID, parsed.data);
+  refreshSnapshot(TENANT_ID); // new thresholds/mode apply to the next request
   return Response.json(parsed.data);
 }

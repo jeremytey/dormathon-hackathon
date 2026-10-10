@@ -21,6 +21,27 @@ function round2(x: number): number {
   return Math.round(x * 100) / 100;
 }
 
+// Demo mode (simulated history seeded) defaults to the simulated series; never mixed with real.
+export function defaultSource(): "real" | "simulated" {
+  return process.env.SEED_SIMULATED === "0" ? "real" : "simulated";
+}
+
+// Completed days before `today` for one source, gaps filled with 0, plus today's spend so far.
+export function dailySeries(tenantId: string, source: "real" | "simulated", today: string) {
+  const byDate = new Map<string, number>();
+  for (const row of dailyUsage(tenantId)) {
+    if (row.source === source) byDate.set(row.local_date, row.provider_cost_myr);
+  }
+  const pastDates = [...byDate.keys()].filter((d) => d < today).sort();
+  const series: { date: string; cost: number }[] = [];
+  if (pastDates.length > 0) {
+    for (let d = pastDates[0]; d < today; d = addDays(d, 1)) {
+      series.push({ date: d, cost: byDate.get(d) ?? 0 });
+    }
+  }
+  return { series, todaySoFar: byDate.get(today) ?? 0 };
+}
+
 export function forecast(
   tenantId: string,
   source: "real" | "simulated",
@@ -32,19 +53,7 @@ export function forecast(
   const [y, m] = today.split("-").map(Number);
   const periodEnd = `${today.slice(0, 7)}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
 
-  // Daily cost by date for this source, gaps filled with 0 between first day and yesterday.
-  const byDate = new Map<string, number>();
-  for (const row of dailyUsage(tenantId)) {
-    if (row.source === source) byDate.set(row.local_date, row.provider_cost_myr);
-  }
-  const todaySoFar = byDate.get(today) ?? 0;
-  const pastDates = [...byDate.keys()].filter((d) => d < today).sort();
-  const series: { date: string; cost: number }[] = [];
-  if (pastDates.length > 0) {
-    for (let d = pastDates[0]; d < today; d = addDays(d, 1)) {
-      series.push({ date: d, cost: byDate.get(d) ?? 0 });
-    }
-  }
+  const { series, todaySoFar } = dailySeries(tenantId, source, today);
 
   // Rolling one-day-ahead backtest: predict day i from the WINDOW days before it.
   let modelErr = 0;

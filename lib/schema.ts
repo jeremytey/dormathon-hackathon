@@ -155,6 +155,10 @@ export const Settings = z
     }),
     predictive_threshold_pct: z.number().positive(),
     exact_cache_approved: z.boolean(),
+    // Output policy: cap reply length (max_tokens). Adaptive turns it on only at high risk,
+    // and only if approved here; always_on applies it whenever approved; manual never does.
+    output_cap_approved: z.boolean(),
+    output_cap_tokens: z.number().int().positive(),
     hard_stop_enabled: z.boolean(),
   })
   .refine(
@@ -171,5 +175,67 @@ export const DEFAULT_SETTINGS: Settings = {
   actual_thresholds: { preventive: 50, high: 75, critical: 90 },
   predictive_threshold_pct: 100,
   exact_cache_approved: true,
+  output_cap_approved: false,
+  output_cap_tokens: 300,
   hard_stop_enabled: false,
 };
+
+// ---------- Risk, policy, alerts ----------
+
+export const RiskLevel = z.enum(["normal", "preventive", "high", "critical"]);
+export type RiskLevel = z.infer<typeof RiskLevel>;
+
+export const Alert = z.object({
+  id: z.string(),
+  billing_period: z.string(), // YYYY-MM
+  alert_type: z.enum(["actual_threshold", "predictive_overrun", "anomaly", "hard_stop"]),
+  severity: RiskLevel,
+  dedupe_key: z.string(),
+  message: z.string(),
+  recommendation: z.string().nullable(),
+  source: z.enum(["real", "simulated"]),
+  created_at: z.iso.datetime(),
+  // Acknowledged = someone saw it. NOT approval, NOT permission to exceed budget.
+  acknowledged_at: z.iso.datetime().nullable(),
+});
+export type Alert = z.infer<typeof Alert>;
+
+export const PolicyChange = z.object({
+  timestamp: z.iso.datetime(),
+  policy: z.literal("output_cap"),
+  action: z.enum(["activated", "deactivated"]),
+  reason: z.string(),
+  forecast_as_of: z.iso.datetime(),
+});
+export type PolicyChange = z.infer<typeof PolicyChange>;
+
+export const Anomaly = z.object({
+  date: z.string(),
+  observed_cost_myr: z.number(),
+  trailing_mean_myr: z.number(), // prior 7 days, excluding this day
+  ratio: z.number(),
+  threshold_ratio: z.number(),
+  explanation: z.string(),
+});
+export type Anomaly = z.infer<typeof Anomaly>;
+
+// GET /api/risk — the saved snapshot the gateway reads (refreshed at most once a minute).
+export const RiskSnapshot = z.object({
+  computed_at: z.iso.datetime(),
+  source: z.enum(["real", "simulated"]),
+  mode: z.enum(["manual", "adaptive", "always_on"]),
+  actual_budget_pct: z.number(),
+  predicted_budget_pct: z.number().nullable(),
+  actual_level: RiskLevel,
+  predictive_triggered: z.boolean(),
+  risk_level: RiskLevel, // higher of actual level and predictive trigger (never added together)
+  reasons: z.array(z.string()),
+  active_policies: z.object({
+    exact_cache: z.boolean(),
+    output_cap_tokens: z.number().int().nullable(),
+  }),
+  recommendations: z.array(z.string()),
+  hard_stop_active: z.boolean(),
+  policy_log: z.array(PolicyChange),
+});
+export type RiskSnapshot = z.infer<typeof RiskSnapshot>;
