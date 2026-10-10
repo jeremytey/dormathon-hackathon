@@ -1,6 +1,7 @@
 # Rules (hackathon: a working demo beats clean code)
-- Read SPEC.md first. If something conflicts with it, stop and ask the person in this session.
-- Build the demo path first. Nothing outside SPEC.md.
+- The spec is build_pack/ (start with build_pack/README.md, TEAM_EXECUTION_PLAN.md, API_CONTRACT.md). If something conflicts with it, stop and ask the person in this session.
+- Build the demo path first. Nothing outside build_pack/ scope.
+- Stack: one Next.js app on Vercel (API routes + dashboard), not the separate Python backend the build pack describes.
 - Prediction numbers come from plain code in lib/ (moving average, trend). The LLM only writes the explanation and recommended action. It never invents a number.
 - Validate every LLM output with Zod. Retry once, then show a cached fallback.
 - Support LLM_MOCK=1 (returns the cached output) so the app runs without an API key.
