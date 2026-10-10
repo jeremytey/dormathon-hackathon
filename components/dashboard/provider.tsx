@@ -1,8 +1,8 @@
 "use client";
 import {createContext,useContext,useMemo,useState} from "react";
-import {forecast,backtest} from "@/lib/forecast";
+import {forecast,backtest} from "@/lib/demo-forecast";
 import {AS_OF,demoUsage,anomalies,historicalBudget} from "@/lib/demo-data";
-import {defaultPolicy,riskFor,type Policy} from "@/lib/policy";
+import {defaultPolicy,riskFor,type Policy} from "@/lib/demo-policy";
 
 type DemoContextValue={policy:Policy;savePolicy:(policy:Policy)=>void;acknowledged:Record<string,boolean>;acknowledge:(id:string)=>void;notice:string;notify:(text:string)=>void};
 const DemoContext=createContext<DemoContextValue|null>(null);

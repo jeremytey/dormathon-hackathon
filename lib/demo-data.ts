@@ -1,4 +1,4 @@
-import type { DailyUsage } from "./forecast";
+import type { DailyUsage } from "./demo-forecast";
 // Fixed local billing dates make the demonstration reproducible on any device.
 export const AS_OF="2026-10-10";
 export const demoUsage:DailyUsage[]=Array.from({length:120},(_,i)=>{

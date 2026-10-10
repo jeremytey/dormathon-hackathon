@@ -7,7 +7,7 @@ import {Label} from "@/components/ui/label";
 import {Switch} from "@/components/ui/switch";
 import {useDemo} from "@/components/dashboard/provider";
 import {PageHeader,Panel,DemoInfo} from "@/components/dashboard/common";
-import {policySchema,type Policy} from "@/lib/policy";
+import {policySchema,type Policy} from "@/lib/demo-policy";
 import {money} from "@/lib/format";
 export default function SettingsPage() {
   const d=useDemo();const [draft,setDraft]=useState<Policy>(d.policy);const [error,setError]=useState("");

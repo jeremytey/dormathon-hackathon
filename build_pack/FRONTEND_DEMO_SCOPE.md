@@ -1,6 +1,6 @@
-# TokenGuard AI — approved frontend demo scope
+# TokenGuard AI — approved frontend demo milestone
 
-Approved in chat on 10 October 2026. This milestone is a frontend demo, not a working provider gateway.
+Approved in chat on 10 October 2026. This document records the frontend demo milestone, not the full project specification. The build pack and current AGENTS.md govern the combined project. Backend API routes and the gateway are now present in the same Next.js app; the frontend demo still awaits API integration.
 
 ## User and problem
 The business owning an AI chatbot needs to understand provider spending and detect projected monthly budget overruns early. The demo uses fictional Lumora/Lumi data; no measured customer loss is claimed.
@@ -26,7 +26,7 @@ Navigate five pages; inspect costs, forecast and alerts; edit positive MYR budge
 3. Acknowledge the early warning separately from editing budget/policy; save settings and see risk recalculate.
 
 ## Out of scope
-Real authentication, Supabase setup, FastAPI gateway, provider credentials, live metering, real policy activation, streaming, model routing, prompt compression, semantic cache, Ridge/Random Forest training, savings what-if, employee chat UI. Original Lumi files remain user-owned and are not recreated. Backend integration follows agreed API contracts in a later milestone.
+For this frontend milestone: real authentication, database setup, provider credentials, live metering, real policy activation, streaming, model routing, prompt compression, semantic cache, Ridge/Random Forest training, savings what-if, employee chat UI. These exclusions describe the demo UI, not exclusions from the combined project. Backend integration follows agreed API contracts in a later milestone, using the existing Next.js API routes and gateway.
 
 ## Verification and delivery
 Prediction arithmetic, chronological backtests, date boundaries, missing history, policy validation and acknowledgement semantics receive meaningful tests. Lint, type checks, production build and responsive browser smoke checks. Work on a branch, commit and open a PR; live Vercel deployment is the final project verification target. No LLM is used in this milestone; explanations are deterministic, so no API key is needed and LLM_MOCK=1 remains compatible.

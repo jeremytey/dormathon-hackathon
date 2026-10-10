@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {policySchema,defaultPolicy,riskFor} from '../lib/policy.ts';
+import {policySchema,defaultPolicy,riskFor} from '../lib/demo-policy.ts';
 test('budget and ordered thresholds are validated before changing policy',()=>{
   assert.equal(policySchema.safeParse({...defaultPolicy,budget:0}).success,false);
   assert.equal(policySchema.safeParse({...defaultPolicy,preventive:80,high:75}).success,false);

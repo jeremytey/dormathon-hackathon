@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { forecast, backtest } from '../lib/forecast.ts';
+import { forecast, backtest } from '../lib/demo-forecast.ts';
 
 const row = (date, cost) => ({date, cost, requests: 10, inputTokens: 100, outputTokens: 50, exactHits: 2, source: 'simulated'});
 const week = Array.from({length:7}, (_, i) => row(`2026-10-${String(i+1).padStart(2,'0')}`, 2));

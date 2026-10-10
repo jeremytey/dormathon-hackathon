@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import type {DailyUsage} from './forecast';
+import type {DailyUsage} from './demo-forecast';
 
 // Exact dataset headers. Already-parsed CSV rows must use numeric values.
 // Avoided cost is a counterfactual estimate, never part of observed charges.
