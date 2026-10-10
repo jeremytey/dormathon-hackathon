@@ -55,7 +55,7 @@ export const UsageEvent = z.object({
   request_id: z.string(),
   tenant_id: z.string(),
   app_id: z.string(),
-  timestamp_utc: z.string().datetime(),
+  timestamp_utc: z.iso.datetime(),
   source: z.enum(["real", "simulated"]),
   provider: z.string(),
   model: z.string(),
@@ -103,6 +103,43 @@ export const UsageSummary = z.object({
   actual_budget_pct: z.number(), // real spend / budget * 100
 });
 export type UsageSummary = z.infer<typeof UsageSummary>;
+
+// GET /api/forecast — month-end projection. Numbers come from lib/forecast.ts (plain code).
+// Forecast fields are null when there is not enough history (never a made-up number).
+export const Forecast = z.object({
+  as_of: z.iso.datetime(),
+  period_start: z.string(), // YYYY-MM-DD
+  period_end: z.string(),
+  timezone: z.string(),
+  source: z.enum(["real", "simulated"]),
+  method: z.literal("rolling_7d_mean"),
+  model_version: z.string(),
+  train_cutoff: z.string().nullable(), // last completed day used
+  history_days: z.number().int(),
+  fallback_reason: z.string().nullable(),
+  budget_myr: z.number(),
+  actual_spend_myr: z.number(), // month to date, including today so far
+  actual_budget_pct: z.number(),
+  daily_forecast_myr: z.number().nullable(),
+  predicted_remaining_myr: z.number().nullable(),
+  predicted_month_end_myr: z.number().nullable(),
+  predicted_budget_pct: z.number().nullable(),
+  projected_overrun_myr: z.number().nullable(), // 0 when under budget
+  projected_crossing_date: z.string().nullable(),
+  // Rolling one-day-ahead backtest over recent completed days.
+  backtest_days: z.number().int(),
+  backtest_mae_myr: z.number().nullable(),
+  naive_mae_myr: z.number().nullable(), // "same as yesterday" baseline we compare against
+  // Chart: every day of the current month; actual for past days, forecast for today onward.
+  daily: z.array(
+    z.object({
+      date: z.string(),
+      actual_myr: z.number().nullable(),
+      forecast_myr: z.number().nullable(),
+    }),
+  ),
+});
+export type Forecast = z.infer<typeof Forecast>;
 
 // ---------- Budget / policy settings ----------
 
