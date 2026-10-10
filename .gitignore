@@ -11,7 +11,7 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage/
 
 # next.js
 /.next/
@@ -39,4 +39,50 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Python build artifacts
+build/
+dist/
+*.whl
+
+# Environment variable files
+.env
+.env.*
 !.env.example
