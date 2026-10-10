@@ -1,13 +1,7 @@
 // Daily and monthly usage aggregates. Plain code, no LLM.
 import { listEvents } from "./store";
 import type { DailyUsage, UsageEvent, UsageSummary } from "./schema";
-
-export const BILLING_TIMEZONE = "Asia/Kuala_Lumpur";
-
-// YYYY-MM-DD in the billing timezone.
-export function localDate(isoUtc: string): string {
-  return new Date(isoUtc).toLocaleDateString("en-CA", { timeZone: BILLING_TIMEZONE });
-}
+import { BILLING_TIMEZONE, localDate } from "./time";
 
 export function dailyUsage(tenantId: string): DailyUsage[] {
   const rows = new Map<string, DailyUsage>();

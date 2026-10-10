@@ -4,8 +4,8 @@ import { resolveTenant } from "@/lib/auth";
 import { cacheEligibility, cacheKey, lookup, store } from "@/lib/cache";
 import { costMyr, usdToMyrRate } from "@/lib/pricing";
 import { callProvider } from "@/lib/provider";
-import { AnthropicRequest, DEFAULT_SETTINGS, type UsageEvent } from "@/lib/schema";
-import { addEvent } from "@/lib/store";
+import { AnthropicRequest, type UsageEvent } from "@/lib/schema";
+import { addEvent, getSettings } from "@/lib/store";
 
 function anthropicError(status: number, type: string, message: string) {
   return Response.json({ type: "error", error: { type, message } }, { status });
@@ -34,8 +34,8 @@ export async function POST(request: Request) {
   }
   const req = parsed.data;
 
-  // TODO(A, 12–16h): read saved settings + hard-stop check.
-  const settings = DEFAULT_SETTINGS;
+  // TODO(A, 12–16h): hard-stop check.
+  const settings = getSettings(tenant.tenant_id);
   const eligibility = cacheEligibility(req, settings.exact_cache_approved);
   const key = eligibility.eligible ? cacheKey(req, tenant) : null;
 
