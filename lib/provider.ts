@@ -6,7 +6,8 @@ import { AnthropicResponse, type AnthropicRequest } from "./schema";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
-export type ProviderResult = { response: AnthropicResponse; mocked: boolean };
+// fallback = real provider failed twice and the cached reply was served instead.
+export type ProviderResult = { response: AnthropicResponse; mocked: boolean; fallback: boolean };
 
 export function mockResponse(req: AnthropicRequest): AnthropicResponse {
   return {
@@ -43,14 +44,14 @@ async function callAnthropic(req: AnthropicRequest, apiKey: string): Promise<Ant
 export async function callProvider(req: AnthropicRequest): Promise<ProviderResult> {
   const apiKey = process.env.LLM_API_KEY;
   if (process.env.LLM_MOCK === "1" || !apiKey) {
-    return { response: mockResponse(req), mocked: true };
+    return { response: mockResponse(req), mocked: true, fallback: false };
   }
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      return { response: await callAnthropic(req, apiKey), mocked: false };
+      return { response: await callAnthropic(req, apiKey), mocked: false, fallback: false };
     } catch (err) {
       console.error(`Provider attempt ${attempt + 1} failed:`, (err as Error).message);
     }
   }
-  return { response: mockResponse(req), mocked: true };
+  return { response: mockResponse(req), mocked: true, fallback: true };
 }

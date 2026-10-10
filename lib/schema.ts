@@ -63,11 +63,46 @@ export const UsageEvent = z.object({
   cache_type: z.enum(["miss", "exact_hit", "bypass"]),
   input_tokens: z.number().int().nonnegative(),
   output_tokens: z.number().int().nonnegative(),
-  provider_cost_myr: z.number().nonnegative(),
-  estimated_avoided_cost_myr: z.number().nonnegative(),
+  // null = model has no known price
+  provider_cost_myr: z.number().nonnegative().nullable(),
+  estimated_avoided_cost_myr: z.number().nonnegative().nullable(),
+  usd_to_myr_rate: z.number().positive(),
   latency_ms: z.number().int().nonnegative(),
 });
 export type UsageEvent = z.infer<typeof UsageEvent>;
+
+// ---------- Dashboard API responses ----------
+
+// GET /api/usage/daily — one row per local date (Asia/Kuala_Lumpur) per source.
+export const DailyUsage = z.object({
+  local_date: z.string(), // YYYY-MM-DD
+  source: z.enum(["real", "simulated"]),
+  requests: z.number().int(),
+  provider_cost_myr: z.number(),
+  avoided_cost_myr: z.number(),
+  input_tokens: z.number().int(),
+  output_tokens: z.number().int(),
+  exact_hits: z.number().int(),
+  cache_hit_rate: z.number(), // exact_hits / requests
+});
+export type DailyUsage = z.infer<typeof DailyUsage>;
+
+// GET /api/usage/summary — current billing month, real and simulated kept separate.
+const SourceTotals = z.object({
+  requests: z.number().int(),
+  provider_cost_myr: z.number(),
+  avoided_cost_myr: z.number(),
+  exact_hits: z.number().int(),
+});
+export const UsageSummary = z.object({
+  month: z.string(), // YYYY-MM
+  timezone: z.string(),
+  monthly_budget_myr: z.number(),
+  real: SourceTotals,
+  simulated: SourceTotals,
+  actual_budget_pct: z.number(), // real spend / budget * 100
+});
+export type UsageSummary = z.infer<typeof UsageSummary>;
 
 // ---------- Budget / policy settings ----------
 

@@ -1,13 +1,18 @@
 // POST /v1/messages — Anthropic-compatible gateway for Lumi (non-streaming text subset).
+import { randomUUID } from "crypto";
 import { resolveTenant } from "@/lib/auth";
+import { cacheEligibility, cacheKey, lookup, store } from "@/lib/cache";
+import { costMyr, usdToMyrRate } from "@/lib/pricing";
 import { callProvider } from "@/lib/provider";
-import { AnthropicRequest } from "@/lib/schema";
+import { AnthropicRequest, DEFAULT_SETTINGS, type UsageEvent } from "@/lib/schema";
+import { addEvent } from "@/lib/store";
 
 function anthropicError(status: number, type: string, message: string) {
   return Response.json({ type: "error", error: { type, message } }, { status });
 }
 
 export async function POST(request: Request) {
+  const started = Date.now();
   const tenant = resolveTenant(request.headers);
   if (!tenant) return anthropicError(401, "authentication_error", "Invalid TokenGuard gateway key");
 
@@ -27,8 +32,59 @@ export async function POST(request: Request) {
       `Unsupported or invalid request (${issue.path.join(".") || "body"}): ${issue.message}`,
     );
   }
+  const req = parsed.data;
 
-  // TODO(A, 4–8h): hard-stop check, exact cache lookup, metering event.
-  const { response } = await callProvider(parsed.data);
-  return Response.json(response);
+  // TODO(A, 12–16h): read saved settings + hard-stop check.
+  const settings = DEFAULT_SETTINGS;
+  const eligibility = cacheEligibility(req, settings.exact_cache_approved);
+  const key = eligibility.eligible ? cacheKey(req, tenant) : null;
+
+  const event = (fields: Partial<UsageEvent>): UsageEvent => ({
+    request_id: randomUUID(),
+    tenant_id: tenant.tenant_id,
+    app_id: tenant.app_id,
+    timestamp_utc: new Date().toISOString(),
+    source: "real",
+    provider: "anthropic",
+    model: req.model,
+    status: "success",
+    cache_type: "miss",
+    input_tokens: 0,
+    output_tokens: 0,
+    provider_cost_myr: 0,
+    estimated_avoided_cost_myr: 0,
+    usd_to_myr_rate: usdToMyrRate(),
+    latency_ms: Date.now() - started,
+    ...fields,
+  });
+
+  const hit = key ? lookup(key) : undefined;
+  if (hit) {
+    addEvent(event({ status: "cache_hit", cache_type: "exact_hit", estimated_avoided_cost_myr: hit.cost_myr }));
+    return Response.json(
+      { ...hit.response, id: `msg_tg_${randomUUID()}`, usage: { input_tokens: 0, output_tokens: 0 } },
+      { headers: { "x-tokenguard-cache": "exact_hit" } },
+    );
+  }
+
+  const { response, mocked, fallback } = await callProvider(req);
+  const { input_tokens, output_tokens } = response.usage;
+  const cost = fallback ? 0 : costMyr(response.model, input_tokens, output_tokens);
+
+  addEvent(
+    event({
+      provider: mocked ? "mock" : "anthropic",
+      model: response.model,
+      status: fallback ? "provider_error" : "success",
+      cache_type: eligibility.eligible ? "miss" : "bypass",
+      input_tokens: fallback ? 0 : input_tokens,
+      output_tokens: fallback ? 0 : output_tokens,
+      provider_cost_myr: cost,
+    }),
+  );
+  if (key && !fallback) store(key, { response, cost_myr: cost });
+
+  return Response.json(response, {
+    headers: { "x-tokenguard-cache": eligibility.eligible ? "miss" : "bypass" },
+  });
 }
