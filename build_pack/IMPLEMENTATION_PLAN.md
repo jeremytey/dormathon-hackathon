@@ -96,7 +96,7 @@ tokenguard/
 10. Dashboard labels historical seeded data as simulated.
 
 ## Parallel team execution
-The phase windows above describe **dependency order**, not exclusive sequential work by one developer. For the four-person, 24-hour parallel assignment, file ownership, integration checkpoints, and cut list, follow `TEAM_EXECUTION_PLAN.md`. Freeze interfaces using `API_CONTRACT.md` in the first hour.
+The phase windows above describe **dependency order**, not exclusive sequential work by one developer. For the two-person, 24-hour parallel assignment, file ownership, integration checkpoints, and cut list, follow `TEAM_EXECUTION_PLAN.md`. Freeze interfaces using `API_CONTRACT.md` in the first hour.
 
 
 ## v3 — Prediction milestones (24-hour priority)

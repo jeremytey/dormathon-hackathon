@@ -1,13 +1,13 @@
 # Lumi integration checklist
 
 1. Preserve the existing `chatbot.py` and `company_info.py`. Do not rebuild Lumi.
-2. Person 1: implement `POST /v1/messages` Anthropic-compatible non-streaming gateway. Parse `model`, `max_tokens`, `system`, `messages`; return Anthropic-style `id`, `type`, `role`, `model`, `content`, `stop_reason`, and `usage`. Unsupported features must return clear errors.
+2. Person A: implement `POST /v1/messages` Anthropic-compatible non-streaming gateway. Parse `model`, `max_tokens`, `system`, `messages`; return Anthropic-style `id`, `type`, `role`, `model`, `content`, `stop_reason`, and `usage`. Unsupported features must return clear errors.
 3. In `chatbot.py`, change client construction to `anthropic.Anthropic(api_key=TOKENGUARD_API_KEY, base_url=TOKENGUARD_BASE_URL)`. Keep provider API keys only in the gateway environment.
 4. Replace `with client.beta.messages.stream(**kwargs)` with `final = client.messages.create(**supported_kwargs)`; extract `reply = "".join(block.text for block in final.content if block.type == "text")`. Use `st.markdown(reply)`. Do not send unsupported `betas`, `extra_body`, `output_config`, `cache_control` until implemented.
 5. Use a real supported provider model identifier, verified at integration time. Keep the pricing configuration centrally on the gateway; do not treat demo prices as authoritative.
-6. Person 2: enforce tenant/app isolation and approved stateless FAQ eligibility; multi-turn and personalised requests bypass semantic response cache.
-7. Person 3: record actual provider usage and cache usage fields separately, distinguish response-cache hit from provider prompt-cache hit, and show simulated history as simulated.
-8. Person 4: retain Lumi Streamlit as the existing-customer demo, and build a separate TokenGuard settings/analytics dashboard.
+6. Person A: enforce tenant/app isolation and approved stateless FAQ eligibility; multi-turn and personalised requests bypass semantic response cache.
+7. Person A: record actual provider usage and cache usage fields separately, distinguish response-cache hit from provider prompt-cache hit, and show simulated history as simulated.
+8. Person B: retain Lumi Streamlit as the existing-customer demo, and build a separate TokenGuard settings/analytics dashboard.
 9. Test direct-vs-gateway response, safe cache hit, unsafe bypass, model/usage metering, adaptive thresholds, budget alerts and optional hard stop.
 10. Only after the MVP passes, add Anthropic SSE streaming and advanced beta features if time remains.
 
