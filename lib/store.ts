@@ -91,3 +91,14 @@ export function acknowledgeAlert(tenantId: string, id: string): Alert | null {
   a.alert.acknowledged_at ??= new Date().toISOString();
   return a.alert;
 }
+
+// Demo reset: back to the freshly seeded state (default settings, no live events,
+// alerts, snapshots or policy log). Simulated history is regenerated.
+export function resetStore(): void {
+  const fresh = createStore();
+  store.events = fresh.events;
+  store.settings = fresh.settings;
+  store.snapshots = fresh.snapshots;
+  store.alerts = fresh.alerts;
+  store.policyLog = fresh.policyLog;
+}

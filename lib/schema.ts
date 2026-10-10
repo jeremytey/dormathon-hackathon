@@ -143,6 +143,17 @@ export const Forecast = z.object({
 });
 export type Forecast = z.infer<typeof Forecast>;
 
+// GET /api/budget/suggestion — a suggestion, never applied automatically.
+export const BudgetSuggestion = z.object({
+  suggested_budget_myr: z.number().nullable(), // null when no complete past month
+  basis: z.literal("median_completed_months"),
+  completed_months: z.array(z.object({ month: z.string(), total_myr: z.number() })),
+  buffer_pct: z.number(),
+  source: z.enum(["real", "simulated"]),
+  limitations: z.array(z.string()),
+});
+export type BudgetSuggestion = z.infer<typeof BudgetSuggestion>;
+
 // ---------- Budget / policy settings ----------
 
 export const Settings = z
