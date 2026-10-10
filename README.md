@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TokenGuard AI dashboard demo
 
-## Getting Started
+A business-owner dashboard for predicting AI chatbot costs before the monthly budget is exhausted. Approved scope: SPEC.md. Original backend plans: build_pack/.
 
-First, run the development server:
+## Run
 
-```bash
+Node.js 24+ is required for native TypeScript tests.
+
+```sh
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000/dashboard. No API key, database or login is required. LLM_MOCK=1 is compatible; this milestone makes no LLM calls.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Overview shows RM73.95 observed spending against a RM200 budget, with a calculated RM252.43 month-end forecast as of 10 October 2026. Forecast explains the seven completed days baseline, budget crossing, anomalies and chronological synthetic backtest. Acknowledge a warning separately from changing budget or policy.
 
-## Learn More
+Five routes: Overview, Usage & Costs, Forecast, Alerts, Budget & Policies. Settings and acknowledgements persist across navigation and reset on refresh. All data is simulated. Controls do not activate real caching or pause provider requests.
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- lib/forecast.ts: deterministic arithmetic, dates, budget crossing and past-only backtest.
+- lib/demo-data.ts: 120 reproducible simulated days, anomalies and historical budget suggestion.
+- lib/policy.ts: Zod validation and independent actual/forecast risk.
+- app/dashboard/: Next.js App Router pages and shared layout.
+- components/dashboard/: responsive shell, charts and demo state.
+- components/ui/: adapted shadcn/ui primitives.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Forecast = observed month spending + unrounded recent daily mean times remaining calendar days. Sparse history is labelled; no recent history produces no forecast. Backtest MAE describes simulated daily predictions, not real-world accuracy. No AI-generated numbers or fabricated measured savings.
 
-## Deploy on Vercel
+## Verification
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```sh
+npm test
+npm run lint
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy as a Next.js project on Vercel; no environment variables required for this demo. The project delivery rule requires live deployment verification. Future authentication, tenant isolation, FastAPI gateway and Supabase integration remain separate milestones.
+
+The shadcn CLI registry request failed certificate verification. Cached dependencies and adapted primitives were used without disabling TLS checks.

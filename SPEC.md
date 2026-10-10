@@ -8,6 +8,8 @@ The business owning an AI chatbot needs to understand provider spending and dete
 ## Frontend
 Next.js App Router, React, TypeScript, Tailwind and shadcn/ui. Light Notion-inspired design based on the user-supplied DESIGN-notion.md: neutral surfaces, blue actions, fine borders, minimal shadows. Routes: /dashboard, /dashboard/usage, /dashboard/forecast, /dashboard/alerts, /dashboard/settings. Shared responsive sidebar and header.
 
+Review revision: preserve the original appearance, remove Overview's duplicate "Needs your attention" list, and add spending-chart hover/focus/tap details and active point/bar highlights. Keep the existing prediction chart and page structure. Request data fields follow the confirmed CSV headers, including actual_provider_cost_usd, usd_to_myr_rate and estimated_avoided_cost_usd; actual charges and estimated avoidance remain separate. CSV upload and live integration are not part of this revision.
+
 ## Data and prediction
 Reproducible simulated daily history, explicitly labelled on every page. Daily observations are in MYR and isolated from real usage. No real gateway/API/database or authentication is claimed. Demo settings and alert acknowledgement live in memory and reset on refresh.
 
