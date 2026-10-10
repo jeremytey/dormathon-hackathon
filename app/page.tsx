@@ -1,2 +1,2 @@
-import {redirect} from "next/navigation";
-export default function Home() {redirect("/dashboard");}
+// next.config.ts redirects root requests before page rendering.
+export default function Home() { return null; }
