@@ -112,7 +112,7 @@ export const Forecast = z.object({
   period_end: z.string(),
   timezone: z.string(),
   source: z.enum(["real", "simulated"]),
-  method: z.literal("rolling_7d_mean"),
+  method: z.enum(["baseline_rolling_7d", "ridge"]), // whichever had lower holdout MAE
   model_version: z.string(),
   train_cutoff: z.string().nullable(), // last completed day used
   history_days: z.number().int(),
@@ -120,16 +120,18 @@ export const Forecast = z.object({
   budget_myr: z.number(),
   actual_spend_myr: z.number(), // month to date, including today so far
   actual_budget_pct: z.number(),
-  daily_forecast_myr: z.number().nullable(),
+  daily_forecast_myr: z.number().nullable(), // prediction for today (first forecast day)
   predicted_remaining_myr: z.number().nullable(),
   predicted_month_end_myr: z.number().nullable(),
   predicted_budget_pct: z.number().nullable(),
   projected_overrun_myr: z.number().nullable(), // 0 when under budget
   projected_crossing_date: z.string().nullable(),
-  // Rolling one-day-ahead backtest over recent completed days.
-  backtest_days: z.number().int(),
-  backtest_mae_myr: z.number().nullable(),
-  naive_mae_myr: z.number().nullable(), // "same as yesterday" baseline we compare against
+  // Chronological 80/20 backtest (oldest 80% train, newest 20% holdout), next-day MAE in MYR.
+  n_train: z.number().int(),
+  n_holdout: z.number().int(),
+  backtest_mae_myr: z.number().nullable(), // MAE of the chosen method
+  baseline_mae_myr: z.number().nullable(), // 7-day average
+  ridge_mae_myr: z.number().nullable(),
   // Chart: every day of the current month; actual for past days, forecast for today onward.
   daily: z.array(
     z.object({

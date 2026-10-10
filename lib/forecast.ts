@@ -1,11 +1,21 @@
-// Month-end spend forecast. Plain code, no LLM: trailing 7-day mean of completed days.
+// Month-end spend forecast. Plain code, no LLM.
+// Same method as Jo Ee's Python version (tokenguard-project/tokenguard/forecast.py):
+//   features of day t -> predict t+1: cost_lag_1, cost_lag_7 (day t-6), cost_roll_7, target weekday;
+//   chronological 80/20 split; 7-day-mean baseline vs Ridge on the same holdout; lower MAE wins.
+// Two deliberate differences:
+//   1. weekday is one-hot (7 columns) instead of a 0-6 number, so a linear model can learn weekends.
+//   2. remaining days are predicted recursively (each prediction feeds the next day's lags)
+//      instead of repeating tomorrow's prediction for the whole month.
 import { dailyUsage } from "./metering";
+import { fitRidge } from "./ridge";
 import type { Forecast } from "./schema";
 import { BILLING_TIMEZONE, localDate } from "./time";
 
 const WINDOW = 7;
-const BACKTEST_DAYS = 28;
-const MODEL_VERSION = "baseline-v1";
+const MIN_HISTORY_DAYS = 7;
+const TRAIN_FRACTION = 0.8;
+const RIDGE_ALPHA = 1;
+const MODEL_VERSION = "ridge-v1";
 
 function addDays(date: string, n: number): string {
   const d = new Date(`${date}T00:00:00Z`);
@@ -42,6 +52,22 @@ export function dailySeries(tenantId: string, source: "real" | "simulated", toda
   return { series, todaySoFar: byDate.get(today) ?? 0 };
 }
 
+// Features of day t for predicting the day after (`targetDate`). null = missing (imputed).
+function features(costs: number[], t: number, targetDate: string): (number | null)[] {
+  const full = t >= WINDOW - 1;
+  const weekday = new Date(`${targetDate}T00:00:00Z`).getUTCDay();
+  return [
+    costs[t], // cost_lag_1
+    full ? costs[t - WINDOW + 1] : null, // cost_lag_7 (same weekday as the target)
+    full ? mean(costs.slice(t - WINDOW + 1, t + 1)) : null, // cost_roll_7
+    ...Array.from({ length: 7 }, (_, d) => (d === weekday ? 1 : 0)), // target weekday one-hot
+  ];
+}
+
+function mae(actual: number[], predicted: number[]): number {
+  return mean(actual.map((a, i) => Math.abs(a - predicted[i])));
+}
+
 export function forecast(
   tenantId: string,
   source: "real" | "simulated",
@@ -54,34 +80,59 @@ export function forecast(
   const periodEnd = `${today.slice(0, 7)}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
 
   const { series, todaySoFar } = dailySeries(tenantId, source, today);
+  const costs = series.map((s) => s.cost);
 
-  // Rolling one-day-ahead backtest: predict day i from the WINDOW days before it.
-  let modelErr = 0;
-  let naiveErr = 0;
-  let backtestDays = 0;
-  for (let i = Math.max(WINDOW, series.length - BACKTEST_DAYS); i < series.length; i++) {
-    const predicted = mean(series.slice(i - WINDOW, i).map((s) => s.cost));
-    modelErr += Math.abs(predicted - series[i].cost);
-    naiveErr += Math.abs(series[i - 1].cost - series[i].cost);
-    backtestDays++;
+  // Supervised rows: day t (features) -> day t+1 (target), completed days only.
+  const rows = series.slice(0, -1).map((_, t) => ({
+    x: features(costs, t, series[t + 1].date),
+    baseline: t >= WINDOW - 1 ? mean(costs.slice(t - WINDOW + 1, t + 1)) : costs[t],
+    y: costs[t + 1],
+  }));
+
+  // Backtest + method selection.
+  let method: Forecast["method"] = "baseline_rolling_7d";
+  let fallbackReason: string | null = null;
+  let baselineMae: number | null = null;
+  let ridgeMae: number | null = null;
+  let nTrain = 0;
+  let nHoldout = 0;
+  if (series.length === 0) {
+    fallbackReason = "NO_HISTORY: no completed days of history; no forecast made.";
+  } else if (series.length < MIN_HISTORY_DAYS || rows.length < 3) {
+    fallbackReason = `SHORT_HISTORY: only ${series.length} completed days; used their average. Low confidence.`;
+  } else {
+    const split = Math.min(Math.max(Math.floor(rows.length * TRAIN_FRACTION), 1), rows.length - 1);
+    const train = rows.slice(0, split);
+    const holdout = rows.slice(split);
+    nTrain = train.length;
+    nHoldout = holdout.length;
+    const actual = holdout.map((r) => r.y);
+    baselineMae = mae(actual, holdout.map((r) => r.baseline));
+    const model = fitRidge(train.map((r) => r.x), train.map((r) => r.y), RIDGE_ALPHA);
+    ridgeMae = mae(actual, holdout.map((r) => Math.max(0, model.predict(r.x))));
+    if (ridgeMae < baselineMae) method = "ridge";
+    else if (ridgeMae > baselineMae) fallbackReason = "ML_PERFORMED_WORSE_THAN_BASELINE: using the 7-day average.";
+    else fallbackReason = "ML_NO_IMPROVEMENT_OVER_BASELINE: using the 7-day average.";
+  }
+
+  // Daily prediction for the rest of the month.
+  let predictNext: ((ext: number[], targetDate: string) => number) | null = null;
+  if (method === "ridge") {
+    const finalModel = fitRidge(rows.map((r) => r.x), rows.map((r) => r.y), RIDGE_ALPHA); // refit on all
+    predictNext = (ext, d) => Math.max(0, finalModel.predict(features(ext, ext.length - 1, d)));
+  } else if (series.length > 0) {
+    const flat = Math.max(0, mean(costs.slice(-WINDOW)));
+    predictNext = () => flat;
   }
 
   const completedThisMonth = series.filter((s) => s.date >= periodStart);
   const mtdCompleted = completedThisMonth.reduce((s, x) => s + x.cost, 0);
-  const actual = mtdCompleted + todaySoFar;
+  const actualSpend = mtdCompleted + todaySoFar;
 
-  const recent = series.slice(-WINDOW).map((s) => s.cost);
-  const fallbackReason =
-    series.length === 0
-      ? "No completed days of history; no forecast made."
-      : series.length < WINDOW
-        ? `Only ${series.length} completed days of history; averaged those instead of 7. Low confidence.`
-        : null;
-  const daily_forecast = recent.length > 0 ? Math.max(0, mean(recent)) : null;
-
-  // Walk the month: actual for completed days, then projection from today.
-  // Today counts as the larger of what's already spent and a normal day.
+  // Walk the month: actual for completed days, then predictions from today.
+  // Today counts as the larger of what's already spent and the prediction.
   let predictedRemaining: number | null = null;
+  let firstPrediction: number | null = null;
   let crossing: string | null = null;
   let cumulative = 0;
   const daily: Forecast["daily"] = [];
@@ -90,17 +141,22 @@ export function forecast(
     if (crossing === null && cumulative > budgetMyr) crossing = s.date;
     daily.push({ date: s.date, actual_myr: round2(s.cost), forecast_myr: null });
   }
-  if (daily_forecast !== null) {
+  if (predictNext) {
     predictedRemaining = 0;
+    const ext = [...costs];
     for (let d = today; d <= periodEnd; d = addDays(d, 1)) {
-      const projected = d === today ? Math.max(todaySoFar, daily_forecast) : daily_forecast;
+      const predicted = predictNext(ext, d);
+      firstPrediction ??= predicted;
+      const projected = d === today ? Math.max(todaySoFar, predicted) : predicted;
+      ext.push(projected);
       predictedRemaining += d === today ? projected - todaySoFar : projected;
       cumulative += projected;
       if (crossing === null && cumulative > budgetMyr) crossing = d;
       daily.push({ date: d, actual_myr: d === today ? round2(todaySoFar) : null, forecast_myr: round2(projected) });
     }
   }
-  const monthEnd = predictedRemaining === null ? null : actual + predictedRemaining;
+  const monthEnd = predictedRemaining === null ? null : actualSpend + predictedRemaining;
+  const selectedMae = method === "ridge" ? ridgeMae : baselineMae;
 
   return {
     as_of: now.toISOString(),
@@ -108,23 +164,25 @@ export function forecast(
     period_end: periodEnd,
     timezone: BILLING_TIMEZONE,
     source,
-    method: "rolling_7d_mean",
+    method,
     model_version: MODEL_VERSION,
     train_cutoff: series.length > 0 ? series[series.length - 1].date : null,
     history_days: series.length,
     fallback_reason: fallbackReason,
     budget_myr: budgetMyr,
-    actual_spend_myr: round2(actual),
-    actual_budget_pct: round2((actual / budgetMyr) * 100),
-    daily_forecast_myr: daily_forecast === null ? null : round2(daily_forecast),
+    actual_spend_myr: round2(actualSpend),
+    actual_budget_pct: round2((actualSpend / budgetMyr) * 100),
+    daily_forecast_myr: firstPrediction === null ? null : round2(firstPrediction),
     predicted_remaining_myr: predictedRemaining === null ? null : round2(predictedRemaining),
     predicted_month_end_myr: monthEnd === null ? null : round2(monthEnd),
     predicted_budget_pct: monthEnd === null ? null : round2((monthEnd / budgetMyr) * 100),
     projected_overrun_myr: monthEnd === null ? null : round2(Math.max(0, monthEnd - budgetMyr)),
     projected_crossing_date: crossing,
-    backtest_days: backtestDays,
-    backtest_mae_myr: backtestDays > 0 ? round2(modelErr / backtestDays) : null,
-    naive_mae_myr: backtestDays > 0 ? round2(naiveErr / backtestDays) : null,
+    n_train: nTrain,
+    n_holdout: nHoldout,
+    backtest_mae_myr: selectedMae === null ? null : round2(selectedMae),
+    baseline_mae_myr: baselineMae === null ? null : round2(baselineMae),
+    ridge_mae_myr: ridgeMae === null ? null : round2(ridgeMae),
     daily,
   };
 }
