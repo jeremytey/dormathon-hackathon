@@ -1,0 +1,16 @@
+"use client";
+import {useState} from "react";
+import {Activity,Database,Layers,Wallet} from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {useDemo} from "@/components/dashboard/provider";
+import {PageHeader,Stat,Panel,DemoInfo} from "@/components/dashboard/common";
+import {DailyChart} from "@/components/dashboard/charts";
+import {money,number,percent,shortDate} from "@/lib/format";
+
+export default function UsagePage() {
+  const d=useDemo();const [range,setRange]=useState<"month"|"30">("month");const rows=range==="month"?d.usage.filter(r=>r.date.startsWith("2026-10")):d.usage.slice(-30);
+  const cost=rows.reduce((s,r)=>s+r.cost,0);const requests=rows.reduce((s,r)=>s+r.requests,0);const tokens=rows.reduce((s,r)=>s+r.inputTokens+r.outputTokens,0);const hits=rows.reduce((s,r)=>s+r.exactHits,0);
+  return <><PageHeader title="Usage & costs" description="Understand what your assistant uses, and where the spend goes."><div className="segmented-control"><Button variant={range==="month"?"secondary":"ghost"} size="sm" aria-pressed={range==="month"} onClick={()=>setRange("month")}>This month</Button><Button variant={range==="30"?"secondary":"ghost"} size="sm" aria-pressed={range==="30"} onClick={()=>setRange("30")}>Last 30 days</Button></div></PageHeader><div className="stats-grid"><Stat label="Provider spend" value={money(cost)} note="Simulated provider cost · MYR" icon={Wallet}/><Stat label="Total requests" value={number(requests)} note={`${rows.length} completed days`} icon={Activity}/><Stat label="Reported tokens" value={number(tokens)} note="Synthetic input + output tokens" icon={Layers}/><Stat label="Cache hit rate" value={percent(hits/requests*100)} note="Exact hits / all requests" icon={Database}/></div>
+    <Panel title="Daily provider spend" description="A view of the completed days in your selected period."><DailyChart rows={rows}/><div className="chart-caption">Original billing and FX provenance will be supplied by the real metering API.</div></Panel>
+    <Panel title="Daily usage" description="Simulated aggregates. Raw employee prompts are never shown here."><div className="table-scroll"><table><thead><tr><th scope="col">Date</th><th scope="col">Application</th><th scope="col">Provider</th><th scope="col">Model</th><th scope="col" className="numeric">Requests</th><th scope="col" className="numeric">Input tokens</th><th scope="col" className="numeric">Output tokens</th><th scope="col" className="numeric">Exact hits</th><th scope="col" className="numeric">Cost (MYR)</th></tr></thead><tbody>{[...rows].reverse().map(row=><tr key={row.date}><td>{shortDate(row.date)}</td><td><span className="app-dot"/>Lumi</td><td>{row.providers?.join(", ")||"Unavailable"}</td><td>{row.models?.join(", ")||"Unavailable"}</td><td className="numeric">{number(row.requests)}</td><td className="numeric">{number(row.inputTokens)}</td><td className="numeric">{number(row.outputTokens)}</td><td className="numeric">{number(row.exactHits)}</td><td className="numeric table-money">{money(row.cost)}</td></tr>)}</tbody></table></div></Panel><DemoInfo>Cache hits avoid downstream generation; they do not imply zero total operating cost. Avoided spend and overhead need real metering before savings can be claimed.</DemoInfo></>;
+}

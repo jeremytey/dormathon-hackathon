@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hackathon app",
-  description: "Predict early, decide better",
+  title: "TokenGuard AI — Predict early, decide better",
+  description: "A simulated business dashboard for AI spending, budget forecasts and early warnings.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body><a href="#main-content" className="skip-link">Skip to content</a>{children}</body>
     </html>
   );
 }

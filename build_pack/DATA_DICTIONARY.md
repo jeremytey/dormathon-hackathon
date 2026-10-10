@@ -13,7 +13,7 @@
 | input_tokens, output_tokens | int | Provider reported if available |
 | cache_creation_input_tokens, cache_read_input_tokens | int | Provider-native prompt cache |
 | token_count_source | enum | provider_reported/estimated/unavailable |
-| provider_cost_usd | decimal | Nullable; cost of actual provider call |
+| actual_provider_cost_usd | decimal | Confirmed CSV header; nullable cost of actual provider call (previously documented as provider_cost_usd) |
 | estimated_avoided_cost_usd | decimal | Counterfactual estimate, separate |
 | usd_to_myr_rate, fx_rate_timestamp | decimal, timestamp | Conversion provenance |
 | provider_cost_myr | decimal | Derived using recorded rate |
