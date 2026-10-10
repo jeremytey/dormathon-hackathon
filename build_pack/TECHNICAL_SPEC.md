@@ -94,7 +94,7 @@ Full streaming, function/tool calling, multimodal, all provider-native APIs, uni
 - The gateway owns provider credentials server-side. Client receives a scoped TokenGuard key. Never put a real provider secret in Streamlit browser state.
 - Preserve multi-turn context; shared semantic caching only for explicitly approved stateless public FAQs. Exact caching requires a safe canonical key including system prompt/version, messages, model, parameters, tenant and app.
 - Token accounting must use returned actual model and usage fields. Provider prompt cache reads/writes are distinct from TokenGuard response-cache hits. Verify the pricing table and model availability against the live provider before claiming costs.
-- Person 1 owns gateway and Lumi adapter; Person 2 owns cache eligibility; Person 3 owns usage/cost storage; Person 4 owns dashboard and Lumi live demo.
+- Person A owns gateway, cache eligibility and usage/cost storage; Person B owns the Lumi client adapter, dashboard and live demo.
 - Smoke test: direct Lumi request works; same request via gateway works; safe repeat FAQ is cached; personalised/multi-turn question bypasses shared semantic cache; usage and budget alerts appear in dashboard.
 
 

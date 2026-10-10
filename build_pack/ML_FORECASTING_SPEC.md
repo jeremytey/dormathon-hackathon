@@ -42,7 +42,7 @@ Offer a *suggested* budget based on complete prior-month median or average plus 
 `gross_savings = expected_eligible_future_requests * expected_cache_hit_rate * average_avoided_provider_cost`; `net_estimate = gross_savings - estimated_incremental_cost`. Use historical measured cache eligibility where available; clearly label uncertain assumptions. Do not claim guaranteed savings or train a model for this unless justified.
 
 ## Automated policy loop
-The prediction service writes a forecast snapshot. Person 2's policy service compares *actual* and *predicted* utilisation against editable thresholds. In adaptive mode only **pre-approved** optimisation changes activate. Manual mode alerts only. Always-on respects safety constraints. Acknowledging an alert is not approval or a spending-limit override. Record every activation, reason, forecast version, and timestamp.
+The prediction service writes a forecast snapshot. Person A's policy service compares *actual* and *predicted* utilisation against editable thresholds. In adaptive mode only **pre-approved** optimisation changes activate. Manual mode alerts only. Always-on respects safety constraints. Acknowledging an alert is not approval or a spending-limit override. Record every activation, reason, forecast version, and timestamp.
 
 ## Test cases
 - No data: return insufficient-history state, no fabricated forecast.

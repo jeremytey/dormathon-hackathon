@@ -51,8 +51,8 @@ Build a working, demoable **TokenGuard AI** MVP for a 24-hour hackathon, Track 1
 ## Definition of done
 A new tenant can configure a gateway key, budget and thresholds; send a supported prompt through TokenGuard; see a correct upstream response; repeat a safe FAQ and get an exact cache hit; see usage/cost events; view forecast and anomaly alerts using clearly labelled seed data; adjust policies and see changes applied to subsequent eligible requests; acknowledge an alert; and demonstrate optional budget hard-stop. Automated tests prove tenant isolation, cache safety, forecast arithmetic, and policy precedence. Optional semantic caching/model routing must be explicitly marked if not implemented.
 
-## Four-person team execution (mandatory)
-This is a **four-person parallel 24-hour build**, not one agent sequentially doing every phase. Read `TEAM_EXECUTION_PLAN.md` and `API_CONTRACT.md` before coding. Respect file ownership and shared interfaces; coordinate gateway, optimisation, data/prediction, and dashboard workstreams. Merge working vertical slices at 4h, 8h, 12h, 16h, and 19h. Each owner must report passing tests and blockers. Freeze optional features at 19h and prioritise the demo. If acting as a coding agent for one person, only modify that person's owned files unless an interface change is explicitly agreed.
+## Two-person team execution (mandatory)
+This is a **two-person parallel 24-hour build**, not one agent sequentially doing every phase. Read `TEAM_EXECUTION_PLAN.md` and `API_CONTRACT.md` before coding. Respect file ownership and shared interfaces; Person A owns all system logic (gateway, cache, policy, metering, forecast, alerts); Person B owns dashboard, simulated seed data, Lumi client adapter and demo. Merge working vertical slices at 4h, 8h, 12h, 16h, and 19h. Each owner must report passing tests and blockers. Freeze optional features at 19h and prioritise the demo. If acting as a coding agent for one person, only modify that person's owned files unless an interface change is explicitly agreed.
 
 
 ## Existing Lumi chatbot integration (required)
@@ -64,7 +64,7 @@ This is a **four-person parallel 24-hour build**, not one agent sequentially doi
 - The gateway owns provider credentials server-side. Client receives a scoped TokenGuard key. Never put a real provider secret in Streamlit browser state.
 - Preserve multi-turn context; shared semantic caching only for explicitly approved stateless public FAQs. Exact caching requires a safe canonical key including system prompt/version, messages, model, parameters, tenant and app.
 - Token accounting must use returned actual model and usage fields. Provider prompt cache reads/writes are distinct from TokenGuard response-cache hits. Verify the pricing table and model availability against the live provider before claiming costs.
-- Person 1 owns gateway and Lumi adapter; Person 2 owns cache eligibility; Person 3 owns usage/cost storage; Person 4 owns dashboard and Lumi live demo.
+- Person A owns gateway, cache eligibility and usage/cost storage; Person B owns the Lumi client adapter, dashboard and live demo.
 - Smoke test: direct Lumi request works; same request via gateway works; safe repeat FAQ is cached; personalised/multi-turn question bypasses shared semantic cache; usage and budget alerts appear in dashboard.
 
 ## Existing Lumi knowledge base: authoritative demo context

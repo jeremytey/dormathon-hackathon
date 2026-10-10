@@ -1,109 +1,111 @@
-# TokenGuard AI — Four-person, 24-hour parallel execution plan
+# TokenGuard AI — Two-person, 24-hour parallel execution plan
 
-This file assigns **ownership**, not four separate sequential phases. All four people work concurrently, integrate early, and keep the existing MVP scope in `SKILL.md`, `IMPLEMENTATION_PLAN.md`, and `TECHNICAL_SPEC.md`. The 24-hour schedule is a target, not a guarantee.
+Two people build in parallel: **Person A owns all system logic (backend)**, **Person B owns the dashboard and demo**. Extra helpers, if any, take tasks from the "Helper tasks" list and never own core files. Scope stays as defined in `SKILL.md`, `IMPLEMENTATION_PLAN.md`, and `TECHNICAL_SPEC.md`, but with two people the cut list below is applied **from the start**, not only when behind. The 24-hour schedule is a target, not a guarantee.
 
 ## Ownership and deliverables
 
 | Owner | Workstream | Owns | Must deliver | Avoid editing |
 |---|---|---|---|---|
-| Person 1 — Gateway & integration lead | Gateway, authentication, provider adapter, request orchestration | `backend/app/api/gateway.py`, `backend/app/core/auth.py`, `backend/app/services/provider.py`, gateway tests | Authenticated `POST /v1/messages` for Lumi, tenant/app resolution, provider call, error handling, response passthrough, stable hooks for cache/policy/metering | Forecast, frontend, schema migrations without review |
-| Person 2 — Optimisation & policy lead | Exact cache, safe semantic FAQ cache, policy evaluation, optional routing/output controls | `backend/app/services/cache.py`, `backend/app/services/policy.py`, cache/policy tests | Exact-cache eligibility + TTL, tenant-safe cache keys, adaptive/manual/always-on policy decisions, optional semantic FAQ after core passes | Gateway endpoint, UI, prediction code |
-| Person 3 — Data, prediction & alerts lead | Supabase schema, metering, historical seed, forecasting, anomaly detection, alerts | `backend/app/db/`, `backend/app/services/metering.py`, `forecast.py`, `anomaly.py`, `alerts.py`, `scripts/seed_demo.py`, related tests | Migration + test seed, idempotent usage events, daily/monthly summaries, forecast, anomaly rules, alert dedupe and acknowledgement | Gateway request handler, UI |
-| Person 4 — Dashboard, UX & demo lead | React UI, settings, metrics visualization, end-to-end demo and pitch | `frontend/`, UI tests, demo script, screenshots | Dashboard with real APIs, monthly budget input/suggestion, threshold sliders, modes, alerts, acknowledgement, clearly labelled simulated data; live demo script | Backend services except API contract discussion |
+| Person A — System logic lead | Gateway, auth, provider adapter, exact cache, policy engine, metering, schema, forecast, anomaly, alerts, dashboard API | `backend/` (gateway, auth, provider, cache, policy, metering, forecast, anomaly, alerts, db), backend tests | Authenticated `POST /v1/messages` for Lumi; tenant/app resolution; provider call + passthrough; safe exact cache; Manual/Adaptive/Always-on policy decisions; idempotent usage events; daily summaries; baseline forecast (Ridge as stretch); anomaly rule; deduped alerts + acknowledgement; all dashboard endpoints in `API_CONTRACT.md` | `frontend/`, demo client adapter |
+| Person B — Dashboard, data & demo lead | React dashboard, settings UI, simulated history seed, Lumi client adapter, demo and pitch | `frontend/`, `scripts/seed_demo.py`, Lumi non-streaming adapter, mock API fixtures, demo script, screenshots, slides | Dashboard on real APIs (mocked until merged): monthly RM budget + suggestion, threshold sliders, modes, actual vs forecast chart, alerts + acknowledge, clearly labelled simulated data; reproducible 90–120-day seed; Lumi pointed at the gateway; rehearsed live demo | Backend services (propose contract changes instead) |
 
-**Shared accountability:** Every person tests their own code, writes documentation for their component, and helps integration/QA. Person 1 is integration coordinator; Person 4 owns demo choreography. Neither should become a bottleneck for others.
+**Why this split:** Person A's work is one connected request path plus one background loop, so it stays in one head. Person B takes everything that only consumes the contract (UI, seed data, Lumi client, demo), which balances load and keeps Person A from being the bottleneck.
+
+**Shared accountability:** each person tests their own code and writes a short README for it. Person A coordinates integration and owns the schema; Person B owns demo choreography and final QA.
 
 ## Architecture contract — agree in first 45 minutes
 
-Freeze these interfaces early; if changed, announce in team chat and update `API_CONTRACT.md` before merging.
+Freeze these interfaces early; if changed, tell the other person and update `API_CONTRACT.md` before merging.
 
-- Gateway: `POST /v1/messages`; Anthropic Messages-compatible non-streaming text subset for existing Lumi first. OpenAI-compatible endpoint optional. TokenGuard gateway key identifies tenant/application.
-- Cache interface: `lookup(request, tenant_context, policy) -> hit/miss + response + cache metadata`; `store(...)` only for eligible successful answers.
-- Policy interface: `evaluate(tenant_context, settings, spend_snapshot, forecast_snapshot, request_metadata) -> {allow_request, exact_cache_enabled, semantic_cache_enabled, output_policy, model_route, risk_level, reasons}`. **Policy controls future requests; it must not depend on synchronous forecasting.**
-- Metering interface: `record_usage(event)` with unique `request_id`, tenant/app IDs, UTC timestamp, source (`real`/`simulated`), model, provider, status, cache type, reported/estimated input/output tokens, actual provider cost, estimated avoided provider cost, latency. Persist one event per request outcome, including cache hit and hard stop.
-- Dashboard endpoints: `GET /api/usage/summary`, `GET /api/usage/daily`, `GET/PUT /api/settings`, `GET /api/forecast`, `GET /api/alerts`, `POST /api/alerts/{id}/acknowledge`, `POST /api/savings/simulate` (optional). Authenticated and tenant-scoped.
-- Budget configuration: MYR monthly budget, billing period/timezone, actual thresholds (defaults 50/75/90), predictive overrun threshold, optimisation mode, approvals, hard-stop flag. Enforce `0 < preventive < high < critical <= 100`.
-- Forecast data: distinguish simulated from real; seeded demo history is labelled and not silently blended into real business actuals.
+- Gateway: `POST /v1/messages`; Anthropic Messages-compatible non-streaming text subset for existing Lumi. TokenGuard gateway key identifies tenant/application.
+- Cache (internal to A): `lookup(request, tenant_context, policy) -> hit/miss + response + cache metadata`; `store(...)` only for eligible successful answers.
+- Policy (internal to A): `evaluate(tenant_context, settings, spend_snapshot, forecast_snapshot, request_metadata) -> {allow_request, exact_cache_enabled, semantic_cache_enabled, output_policy, model_route, risk_level, reasons}`. **Policy controls future requests; it must not depend on synchronous forecasting.**
+- Metering event: unique `request_id`, tenant/app IDs, UTC timestamp, source (`real`/`simulated`), model, provider, status, cache type, input/output tokens, actual provider cost, estimated avoided cost, latency. One event per request outcome, including cache hit and hard stop. **Person B's seed script writes rows in this exact shape** (see `DATA_DICTIONARY.md`).
+- Dashboard endpoints: `GET /api/usage/summary`, `GET /api/usage/daily`, `GET/PUT /api/settings`, `GET /api/forecast`, `GET /api/alerts`, `POST /api/alerts/{id}/acknowledge`. Authenticated and tenant-scoped. Person B commits example JSON responses as mock fixtures on day one.
+- Budget configuration: MYR monthly budget, billing period/timezone, actual thresholds (defaults 50/75/90), predictive overrun threshold, mode, approvals, hard-stop flag. Enforce `0 < preventive < high < critical <= 100`.
+- Forecast data: simulated and real are distinguished; seeded history is labelled and never silently blended into real actuals.
 
 ## Shared repository and integration rules
 
-1. One shared repository with protected `main`; branches: `feature/gateway`, `feature/optimisation`, `feature/prediction-data`, `feature/dashboard`.
-2. First commit establishes backend/frontend scaffolds, `.env.example`, schemas, API contract, and **mock provider**. Agree which owner merges it (Person 1 coordinates, Person 3 owns schema).
-3. Use pull requests or short peer-reviewed merges; avoid simultaneous edits to the same file. Resolve contract changes before coding against them.
-4. Never commit provider credentials, Supabase service-role keys, user prompts or personal data. Frontend uses only safe public config; all server secrets stay backend-side.
-5. Use mocks/stubs for another workstream until the implementation is merged. Do not wait idly for dependencies.
-6. Run backend tests, frontend build, and one full gateway-to-dashboard smoke test after every integration milestone.
-7. Update `BUILD_STATUS.md` with owner, implementation status, test evidence, blockers and integration status. Do not check an item as done before a test.
+1. One repository with protected `main`; branches `feature/system` (A) and `feature/dashboard` (B).
+2. First commit: backend/frontend scaffolds, `.env.example`, schema, API contract, **mock provider**, and mock API fixtures. Person A merges it.
+3. Small PRs, reviewed by the other person when possible. Never edit the other person's files without telling them.
+4. Never commit provider credentials, Supabase service-role keys, user prompts or personal data. Frontend uses only safe public config.
+5. Code against mocks until the real implementation is merged. Do not wait idly.
+6. After every checkpoint: backend tests, frontend build, one gateway-to-dashboard smoke test.
+7. Update `BUILD_STATUS.md` only after a test passes.
 
 ## Parallel 24-hour schedule
 
-| Time | Person 1 — Gateway | Person 2 — Optimisation | Person 3 — Data/prediction | Person 4 — Dashboard/demo | Integration checkpoint |
-|---|---|---|---|---|---|
-| 0–1h | Scaffold + gateway contract | Cache/policy interfaces + safety rules | SQL schema + event contract | UI wireframe + dashboard API contract | **1h:** freeze interfaces and choose mock provider |
-| 1–4h | Auth + mock/live provider request | Exact cache implementation + tests | Migrations, tenant-safe usage events | React scaffold, settings forms using mocked endpoints | **4h:** gateway returns mock answer; schema applies |
-| 4–8h | Wire cache/metering hooks, errors | Exact-cache integration, policy modes | Metering summaries, cost arithmetic | Usage cards/charts + API integration | **8h:** prompt → gateway → usage event → dashboard |
-| 8–12h | Reliability + gateway tests | Actual/predictive thresholds, hard-stop, tests | Seed 30–60d, spending forecast | Editable budgets/modes/thresholds + alerts UI | **12h:** budget forecast and settings work end-to-end |
-| 12–16h | Integrate alerts/policy; review security | Optional semantic approved-FAQ cache | Anomaly detection, alert dedupe, what-if formula | Forecast, anomaly, savings displays | **16h:** predictive warning changes approved policy |
-| 16–19h | Cross-tenant + error testing | Cache quality/negative tests; optional output rules | Data correctness, simulated/real labels | E2E demo rehearsal + UI fixes | **19h:** full rehearsal, feature freeze |
-| 19–22h | Integration bug fixes | Integration bug fixes | Integration bug fixes | Demo recording/slides + bug fixes | **22h:** clean install and repeatable demo |
-| 22–24h | Support demo | Support demo | Support demo | Present/pitch | **Final:** only critical fixes, no new features |
+| Time | Person A — System logic | Person B — Dashboard, data & demo | Integration checkpoint |
+|---|---|---|---|
+| 0–1h | Scaffold, schema, gateway + policy contract, mock provider | Wireframe, mock API fixtures, seed data shape | **1h:** contract frozen |
+| 1–4h | Auth + `/v1/messages` with mock/live provider | React scaffold, settings forms on mocks; Lumi non-streaming adapter | **4h:** Lumi → gateway → mock answer |
+| 4–8h | Metering events + daily summaries; exact cache + tests | Usage cards/charts; seed script (90–120 days, labelled simulated) | **8h:** prompt → gateway → usage event → dashboard |
+| 8–12h | Baseline forecast (7-day rolling avg) + forecast endpoint; settings API with validation | Editable budget/modes/thresholds wired to real API; forecast chart | **12h:** budget + forecast work end-to-end |
+| 12–16h | Policy modes + predictive threshold → alerts (dedupe, acknowledge); hard stop; anomaly rule | Alerts UI, acknowledge vs approve controls, anomaly display | **16h:** predictive warning changes approved policy |
+| 16–19h | Stretch: Ridge vs baseline MAE; tenant isolation + cache-bypass tests | E2E rehearsal, UI fixes, MAE/method display if Ridge lands | **19h:** full rehearsal, feature freeze |
+| 19–22h | Integration bug fixes | Demo recording/slides + bug fixes | **22h:** clean install and repeatable demo |
+| 22–24h | Support demo | Present/pitch | **Final:** critical fixes only |
 
 ## Critical dependency chain
 
-1. **Gateway authentication + mock provider** → 2. **Metering event contract + persistence** → 3. **Actual cost dashboard** → 4. **Forecast and risk** → 5. **Policy feedback into gateway** → 6. **Alerts + demo**.
+1. **Gateway auth + mock provider** (A) → 2. **Metering event + persistence** (A) → 3. **Actual cost dashboard** (B) → 4. **Forecast and risk** (A) → 5. **Policy feedback into gateway** (A) → 6. **Alerts + demo** (A + B).
 
-Exact cache can develop in parallel against the agreed gateway interface. The UI can develop against mocked dashboard responses. The semantic cache must never block the core chain.
+Person B is never blocked: every UI piece is built against mock fixtures first, and the seed script only depends on the agreed event shape.
 
-## Minimum viable demo (must pass before optional work)
+## Minimum viable demo (must pass before any stretch work)
 
-1. User sets an RM200 monthly budget and chooses Adaptive, Manual, or Always-on with editable thresholds.
-2. A supported safe FAQ goes through the gateway, gets a provider response, and logs real usage/cost.
-3. Repeating the exact eligible FAQ returns a cache hit and records avoided downstream LLM spend.
-4. Labelled simulated history shows an illustrative RM280 month-end forecast, RM80 overrun and an early alert **even if actual spending is below its trigger**.
-5. In Manual mode the dashboard recommends action without activating a new policy; in Adaptive mode only previously approved policies activate.
-6. Alert acknowledgement is stored separately from optimisation approval or permission to exceed budget.
-7. Optional hard-stop blocks new upstream calls at the budget limit; warn-only continues with alerts.
-8. A personalised/order-status request bypasses shared caches; a second tenant cannot read the first tenant's data.
+1. User sets an RM200 monthly budget and picks Adaptive, Manual, or Always-on with editable thresholds.
+2. A safe FAQ goes through the gateway, gets a provider response, and logs real usage/cost.
+3. Repeating the exact FAQ returns a cache hit and records avoided provider spend.
+4. Labelled simulated history shows an illustrative RM280 month-end forecast, RM80 overrun, and an early alert **even though actual spend is below its trigger**.
+5. Manual mode recommends without activating; Adaptive activates only pre-approved policies.
+6. Alert acknowledgement is stored separately from approval or permission to exceed budget.
+7. Optional hard stop blocks new upstream calls at the budget limit; warn-only continues with alerts.
+8. A personalised request (e.g. leave balance) bypasses the cache; a second tenant cannot read the first tenant's data.
 
-## Cut list if behind schedule
+## Scope for two people
 
-Cut in this order: model routing → prompt compression → semantic caching → fancy anomaly ML → savings scenario UI polish. **Do not cut** gateway, tenant authentication, correct metering, safe exact caching, budget/settings, forecast, predictive warning, policy feedback, or demo data labelling.
+**Cut from the start:** model routing, prompt compression, OpenAI-compatible endpoint, savings what-if UI, Random Forest.
+
+**Stretch only after the MVP demo passes (in this order):** Ridge vs baseline with chronological MAE → approved-FAQ semantic cache → savings scenario.
+
+**Never cut:** gateway, tenant auth, correct metering, safe exact cache, budget/settings, baseline forecast, predictive warning, policy feedback, simulated-data labelling.
+
+## Helper tasks (if a third or fourth person joins part-time)
+
+Helpers take from this list and hand results to the owner; they do not own core files.
+- Run `DEMO_TEST_PLAN.md` cases and log results in `BUILD_STATUS.md`.
+- Write negative cache examples (tenure, personal balance, multilingual) as test fixtures for Person A.
+- Draft slides, pitch script and screenshots for Person B.
+- Verify Claude pricing table and USD→MYR rate assumptions.
 
 ## Team communication cadence
 
-- 0:00 kickoff: roles, ownership, contract, credentials policy.
-- Every 2–3 hours: 10-minute checkpoint: completed, next, blocker, interface change.
-- At 8h, 12h, 16h, 19h: integration demos with one shared test tenant.
-- At 19h: feature freeze; remaining time is QA, pitch, and reproducibility.
+- 0:00 kickoff: roles, contract, credentials policy.
+- Every 2–3 hours: 5-minute sync — done, next, blocker, interface change.
+- At 4h, 8h, 12h, 16h, 19h: integration demo on one shared test tenant.
+- At 19h: feature freeze; remaining time is QA, pitch and reproducibility.
 
-## Per-person handoff checklist
+## Handoff checklist
 
-Each owner hands off: (a) changed files/PR, (b) API/interface and example payloads, (c) setup commands and environment variables, (d) tests run with results, (e) limitations, (f) any pending integration work. No claims of functionality without working tests.
-
+Each owner hands off: (a) changed files/PR, (b) API/interface and example payloads, (c) setup commands and env vars, (d) tests run with results, (e) limitations, (f) pending integration work. No claims of functionality without working tests.
 
 ## Existing Lumi chatbot integration (required)
 
 - Existing application: Streamlit `chatbot.py` and `company_info.py` with `SYSTEM_PROMPT`; Anthropic SDK uses `client.beta.messages.stream`, `output_config.effort`, `cache_control`, and optional `betas` / `extra_body` fallbacks.
-- **MVP:** keep Lumi UI, system prompt and history. Replace direct provider credentials with a TokenGuard gateway key and `base_url` pointing to the FastAPI gateway. The gateway must implement the Anthropic SDK's `/v1/messages` request/response shape for the supported non-streaming subset, including content blocks, model, usage and stop reason. The SDK may send Anthropic-specific headers; handle or reject explicitly.
-- Temporarily replace `client.beta.messages.stream(...)` with a supported non-streaming `client.messages.create(...)` call in the demo adapter; show the returned text using Streamlit. Re-enable streaming only if the gateway correctly implements Anthropic SSE event framing, not just text chunks.
-- Temporarily omit unsupported `output_config`, `betas`, `extra_body` fallback, and provider cache-control options, or implement validated passthrough for each. Do not silently discard them.
-- The gateway owns provider credentials server-side. Client receives a scoped TokenGuard key. Never put a real provider secret in Streamlit browser state.
-- Preserve multi-turn context; shared semantic caching only for explicitly approved stateless public FAQs. Exact caching requires a safe canonical key including system prompt/version, messages, model, parameters, tenant and app.
-- Token accounting must use returned actual model and usage fields. Provider prompt cache reads/writes are distinct from TokenGuard response-cache hits. Verify the pricing table and model availability against the live provider before claiming costs.
-- Person 1 owns gateway and Lumi adapter; Person 2 owns cache eligibility; Person 3 owns usage/cost storage; Person 4 owns dashboard and Lumi live demo.
-- Smoke test: direct Lumi request works; same request via gateway works; safe repeat FAQ is cached; personalised/multi-turn question bypasses shared semantic cache; usage and budget alerts appear in dashboard.
+- **MVP:** keep Lumi UI, system prompt and history. Replace direct provider credentials with a TokenGuard gateway key and `base_url` pointing to the gateway. The gateway implements the Anthropic SDK's `/v1/messages` request/response shape for the non-streaming subset, including content blocks, model, usage and stop reason. Handle or explicitly reject Anthropic-specific headers.
+- Temporarily replace `client.beta.messages.stream(...)` with non-streaming `client.messages.create(...)` in the demo adapter. Re-enable streaming only if the gateway implements Anthropic SSE event framing correctly.
+- Temporarily omit unsupported `output_config`, `betas`, `extra_body` fallback, and provider cache-control options, or implement validated passthrough. Do not silently discard them.
+- The gateway owns provider credentials server-side. The client receives a scoped TokenGuard key only.
+- Preserve multi-turn context. Exact caching requires a safe canonical key including system prompt/version, messages, model, parameters, tenant and app.
+- Token accounting uses returned actual model and usage fields. Provider prompt-cache reads/writes are distinct from TokenGuard response-cache hits.
+- **Person A** owns the gateway, cache eligibility, and usage/cost storage. **Person B** owns the Lumi client adapter, dashboard and live demo.
+- Smoke test: direct Lumi request works; same request via gateway works; safe repeat FAQ is cached; personalised/multi-turn question bypasses the cache; usage and budget alerts appear in the dashboard.
 
-## Existing Lumi-specific ownership
-- **Person 1:** integrate the supplied `chatbot.py` with `POST /v1/messages`; preserve `company_info.py`; test direct vs gateway; implement a safe temporary non-streaming adapter. Coordinate SDK headers and response schema with Person 3.
-- **Person 2:** build tenant/app/version-scoped exact cache and admin-approved FAQ semantic cache. Use `DEMO_TEST_PLAN.md` negative examples (tenure, personalised balances, security/ethics, multilingual) and validate opt-in thresholds.
-- **Person 3:** implement real provider usage fields including prompt-cache read/write, cost provenance and historical simulated records. Predict forecast overrun, anomalous request spikes and savings scenarios. Ensure no seed data is counted as real spend.
-- **Person 4:** keep the existing Lumi Streamlit interface as the **client demo** and build a separate TokenGuard dashboard. Show editable budget/thresholds, actual vs projected usage, active policies, alerts, acknowledgements and safe request comparison. Own final walkthrough.
-- **Integration checkpoints:** by hour 2 freeze SDK payload/response + database types; hour 6 prove Lumi -> gateway -> Claude with mocked/live response; hour 10 show real metering and exact-cache test; hour 16 show policy + forecast feedback; hour 20 freeze and rehearse.
+## Prediction work allocation
 
-
-## v3: ML work allocation / dependencies
-- **Person 3 owns ML forecasting end-to-end**: request log + daily aggregate, deterministic synthetic seed (90–180 days), past-only feature generation, baseline, Ridge, optional Random Forest, chronological backtest with MAE, month-end forecast, anomaly detection, budget suggestions, prediction endpoints and tests. This is the highest-risk workstream: deliver baseline by hour 8 and validated ML comparison by hour 14.
-- **Person 2 owns consumption/forecast trigger policy**: evaluate actual_pct and forecast_pct independently; use the latest persisted forecast, do not retrain in request path. Trigger only approved semantic cache/routing policies; manual mode suggests only. Person 3 supplies forecast snapshot; Person 2 consumes it.
-- **Person 4 owns budget setup + prediction UX**: manually set budget or review/accept historically suggested budget; show data source (simulated/real), baseline vs ML, forecast, MAE, anomaly and scenario assumptions. Do not display synthetic metrics as live customer results.
-- **Person 1 owns gateway metering**: provider-reported usage when available, precise timestamps/model/cache provenance, USD cost and FX metadata, idempotent events. Deliver records matching `DATA_DICTIONARY.md`.
-- Integration checks: H4 event schema; H8 baseline forecast endpoint; H12 budget/policy wiring; H16 model comparison; H19 freeze and demo. Each person works concurrently.
+- **Person A owns forecasting and the policy loop:** daily aggregates, past-only features, 7-day rolling baseline (required), Ridge with chronological holdout MAE (stretch), month-end forecast, anomaly rule, alert dedupe, prediction endpoints and tests. Policy reads the latest persisted forecast snapshot; it never retrains in the request path. Manual mode suggests only.
+- **Person B owns the simulated history and prediction UX:** deterministic seed (90–120 days, weekday variation, growth, one or two spikes, every row labelled `simulated`); budget input and accept-suggestion flow; display of data source, method (baseline/Ridge), as-of date, MAE when available, anomaly and limitations. Never present synthetic metrics as live customer results.
+- Integration checks: H4 event schema + seed shape; H8 summaries on dashboard; H12 baseline forecast + budget wiring; H16 policy feedback; H19 freeze and demo.

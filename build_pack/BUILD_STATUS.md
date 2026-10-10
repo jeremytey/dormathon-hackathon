@@ -20,15 +20,13 @@ Not run yet.
 ## Deferred items
 To be decided during build.
 
-## Four-person ownership (see TEAM_EXECUTION_PLAN.md)
-- [ ] Person 1 — Gateway: implementation / tests / integrated
-- [ ] Person 2 — Optimisation: implementation / tests / integrated
-- [ ] Person 3 — Data + prediction: implementation / tests / integrated
-- [ ] Person 4 — Dashboard + demo: implementation / tests / integrated
+## Two-person ownership (see TEAM_EXECUTION_PLAN.md)
+- [ ] Person A — System logic (gateway, cache, policy, metering, forecast, alerts): implementation / tests / integrated
+- [ ] Person B — Dashboard, seed data, Lumi adapter, demo: implementation / tests / integrated
 
 ## Integration checkpoints
 - [ ] Hour 1: API contract frozen
-- [ ] Hour 4: mock provider and schema
+- [ ] Hour 4: Lumi → gateway → mock answer
 - [ ] Hour 8: gateway → metering → dashboard
 - [ ] Hour 12: forecast + settings
 - [ ] Hour 16: policy feedback + alerts
@@ -52,7 +50,7 @@ To be decided during build.
 - [ ] Forecast seeded history is visibly marked simulated.
 - [ ] Manual/Adaptive/Always-on and threshold settings verified.
 - [ ] Alerts, acknowledgement, optional hard-stop and policy consent verified.
-- [ ] Four-person end-to-end demo and security tests pass.
+- [ ] Two-person end-to-end demo and security tests pass.
 
 
 ## v3 prediction acceptance checklist
@@ -61,7 +59,6 @@ To be decided during build.
 - [ ] Daily aggregates and past-only features verified (no future leakage).
 - [ ] Baseline rolling forecast implemented and tested on calendar-month rollover.
 - [ ] Ridge model trained, chronological holdout MAE computed, baseline compared.
-- [ ] Optional Random Forest compared without random split.
 - [ ] Low-data fallback and negative-forecast clipping tested.
 - [ ] Budget manual input + historical suggestion requiring approval verified.
 - [ ] Actual and predicted trigger percentages independently tested.
