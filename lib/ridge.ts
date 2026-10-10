@@ -1,4 +1,4 @@
-// Ridge regression, same pipeline as Jo Ee's Python version (tokenguard-project/forecast.py):
+// Ridge regression, same pipeline as Jo Ee's Python version (tokenguard-project/tokenguard/forecast.py):
 // median imputation -> standard scaling -> Ridge(alpha) with an unpenalised intercept.
 // Plain code, no dependency: solves (XᵀX + αI) w = Xᵀ(y - ȳ) on scaled features.
 
