@@ -15,10 +15,22 @@ Update this file after each phase; check a box only after implementation and tes
 None recorded.
 
 ## Test results
-Not run yet.
+Person A backend (Next.js, LLM_MOCK=1, `next start`), 2026-10-10 — manual curl smoke tests, all passed:
+- Gateway: valid key 200 (Anthropic shape); bad key 401; `stream:true` / `tools` rejected 400.
+- Exact cache: repeat FAQ miss -> exact_hit; personal question and multi-turn -> bypass; cache off in settings -> bypass.
+- Metering: one event per request; /api/usage/daily and /summary keep real vs simulated separate.
+- Settings: bad threshold order rejected 400; saved settings apply to the next request.
+- Forecast (simulated history, 120 days): Ridge chosen, holdout MAE RM1.98 vs baseline RM2.92 (95 train / 24 holdout days),
+  matches an independent numpy implementation. Month-end RM261 (131%) vs RM200 budget; actual 41%. Real source with no history -> no forecast + reason.
+- Policy/alerts: predictive early warning while actual is below threshold; adaptive turns on approved reply cap; manual only recommends;
+  acknowledge marks seen only; alerts deduped; hard stop blocks with 403 and logs `blocked`.
+- `npm run build` and `npm run lint` pass. Not yet verified on the live Vercel link or with the real Anthropic SDK.
 
 ## Deferred items
-To be decided during build.
+- Second tenant / tenant-isolation test: skipped by team decision (demo runs one tenant). Code keys cache, usage, settings and alerts by tenant, but isolation is untested.
+- Dashboard auth: dashboard APIs are scoped to the single demo tenant, no login.
+- Durable storage: in-memory store; data resets on restart and is not shared across Vercel instances.
+- Cut from the start: semantic cache, model routing, prompt compression, savings what-if UI, Random Forest.
 
 ## Two-person ownership (see TEAM_EXECUTION_PLAN.md)
 - [ ] Person A — System logic (gateway, cache, policy, metering, forecast, alerts): implementation / tests / integrated
