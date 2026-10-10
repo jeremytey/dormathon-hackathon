@@ -86,3 +86,6 @@ dist/
 .env
 .env.*
 !.env.example
+# Streamlit secrets (API keys)
+.streamlit/secrets.toml
+
