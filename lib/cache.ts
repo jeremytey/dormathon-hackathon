@@ -52,3 +52,7 @@ export function lookup(key: string): Entry | undefined {
 export function store(key: string, entry: Entry): void {
   cache.set(key, entry);
 }
+
+export function clearCache(): void {
+  cache.clear();
+}
